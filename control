@@ -1,0 +1,57 @@
+Source: finroc
+Priority: extra
+Maintainer: Tobias Föhst <foehst@informatik.uni-kl.de>
+Build-Depends: debhelper (>= 7.0.50~), apt-file, libxml-simple-perl
+# curl?
+Standards-Version: 3.9.1
+Section: libs
+Homepage: http://www.finroc.org
+
+Package: finroc-run
+Section: misc
+Architecture: any
+Depends: libfinroc-plugins-runtime-construction (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Utility for Finroc's runtime construction plugin (unstable branch)
+ <insert long description, indented with spaces>
+ 
+Package: finroc-tools-java
+Section: misc
+Architecture: all
+Depends: libfinroc-core-java (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Finroc Java Tools (unstable branch)
+ <insert long description, indented with spaces>
+ 
+Package: libenum-strings
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Support library to translate between C++ enums and strings (unstable branch)
+ <insert long description, indented with spaces>
+
+Package: librrlib-all-dbg
+Section: debug
+Architecture: all
+Depends: ${rrlib:DbgPackages}
+Description: RRLib C++ debug symbols (ALL) (unstable branch)
+ <insert long description, indented with spaces>
+
+Package: librrlib-all-dev
+Section: libdevel
+Architecture: all
+Depends: ${rrlib:DevPackages}
+Description: RRLib C++ development files (ALL) (unstable branch)
+ <insert long description, indented with spaces>
+
+Package: libfinroc-all-dbg
+Section: debug
+Architecture: all
+Depends: ${finroc:DbgPackages}
+Description: Finroc C++ debug symbols (ALL) (unstable branch)
+ <insert long description, indented with spaces>
+
+Package: libfinroc-all-dev
+Section: libdevel
+Architecture: all
+Depends: ${finroc:DevPackages}
+Description: Finroc C++ development files (ALL) (unstable branch)
+ <insert long description, indented with spaces>

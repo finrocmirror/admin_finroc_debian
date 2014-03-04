@@ -1,0 +1,11 @@
+boost_iostreams: libboost-iostreams-dev
+boost_thread: libboost-thread-dev
+espeak: libespeak-dev
+est: libestools2.1-dev
+festival: festival-dev
+jni: default-jdk
+opencv_all: libopencv-dev
+opencv_core: libopencv-dev
+pthread: libpthread-stubs0-dev
+rt: libc6-dev
+xml2: libxml2-dev

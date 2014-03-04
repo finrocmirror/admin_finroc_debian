@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+%:
+	dh $@ --parallel
+
+override_dh_clean:
+	dh_clean
+	rm -f debian/substvars debian/*.install debian/*.copyright debian/control debian/rules
+	for i in debian/*.in ; do cp $${i} $$(echo $${i} | sed -e 's/\.in$$//') ; done
+	rm -rf .offline .finroc.conf Makefile libinfo.h etc/targets/*_release_dpkg
+
+override_dh_auto_clean:
+	@ant -f make_builder/build.xml clean 2> /dev/null || true
+	rm -f make_builder/etc/libdb.java make_builder/etc/libdb.txt
+	rm -rf export build
+
+override_dh_auto_configure:
+#	dh_auto_configure
+	for i in etc/targets/*_release ; do cp $${i} $${i}_dpkg ; done
+	sed -i 's/CFLAGS=/CFLAGS=-ggdb /' etc/targets/*_release_dpkg
+	apt-file update > /dev/null
+	bash -c 'source scripts/setenv -m release_dpkg ; [[ -n $$FINROC_HOME ]] && debian/generate_packages'
+	apt-file purge
+
+#override_dh_auto_build:
+override_dh_auto_test:
+
+override_dh_gencontrol:
+	dh_gencontrol --package=librrlib-all-dbg --package=librrlib-all-dev --package=libfinroc-all-dbg --package=libfinroc-all-dev 
+	dh_gencontrol --remaining-packages

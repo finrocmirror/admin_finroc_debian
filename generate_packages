@@ -1,0 +1,328 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use Env '$FINROC_HOME';
+use Env '$FINROC_TARGET';
+
+use XML::Simple;
+use File::Basename;
+
+use lib "$FINROC_HOME/scripts/perl";
+use FINROC::messages;
+use FINROC::utilities;
+use FINROC::scm;
+use FINROC::components;
+
+use Data::Dumper;
+
+my (@global_lib, @global_bin);
+my %package_meta_data;
+
+
+####################################
+##  Inspect available components  ##
+####################################
+
+INFOMSG "Adding component data...\n";
+
+my @components;
+foreach my $directory (keys {FindWorkingCopyBaseFolders})
+{
+    my $component = GetComponentNameFromDirectory $directory;
+
+#    ERRORMSG sprintf "%s is not on default branch!\n", $directory unless IsOnDefaultBranch $directory;
+#    ERRORMSG sprintf "%s has unpublished modifications!\n", $directory if '' ne Status $directory, 0, 0, undef, undef;
+    next unless $component;
+    next if $component eq "make_builder";
+    next if $component =~ /^finroc_projects_/;
+    next if $component =~ /^finroc_tools_/;
+
+    INFOMSG sprintf "  Adding %s\n", $component;
+    push @components, $component;
+    my %component = %{ComponentInfo $component};
+
+    my ($type, $name) = $component =~ /^([^_]+)_([^-]+)/;
+#    my @dependencies = split " ", join " ", (defined $component{dependencies} ? $component{dependencies} : ""), (defined $component{optional_dependencies} ? $component{optional_dependencies} : "");
+    $package_meta_data{$component} = { lib => [],
+                                       bin => [],
+                                       pkg => [],
+#                                       dependencies => [ @dependencies ],
+                                       dev_dependencies => {},
+                                       type => $type,
+                                       name => $name,
+                                       language => $component{language} };
+
+    foreach my $make_xml (map { chomp; $_ } `find -L $directory -iname "make.xml"` )
+    {
+        INFOMSG sprintf "    Collecting targets from %s\n", $make_xml;
+        my $make_targets = XMLin($make_xml,
+                                 KeyAttr => [],
+                                 ForceArray => [ "rrlib", "testprogram", "finroclibrary", "finrocplugin", "finrocprogram" ],
+                                 ForceContent => [ "sources" ],
+                                 NormalizeSpace => 2);
+
+        sub AddFiles($$$$)
+        {
+            sub Name($$)
+            {
+                my ($main, $suffix) = @_;
+                return $main unless defined $suffix;
+                return join "_", $main, $suffix;
+            }
+
+            my ($list, $format_string, $component_name, $targets) = @_;
+            push $list, map { sprintf $format_string, Name $component_name, $$_{name} } @{$targets};
+        }
+
+        map { map { $package_meta_data{$component}{dev_dependencies}{$_} = 1 } split " ", $$_{libs} if defined $$_{libs} } @{$$make_targets{rrlib}};
+        if ($type eq "rrlib")
+        {
+            if ($component{language} eq "cpp")
+            {
+                AddFiles $package_meta_data{$component}{lib}, "librrlib_%s.so", $name, $$make_targets{rrlib};
+                AddFiles $package_meta_data{$component}{pkg}, "rrlib_%s.pc", $name, $$make_targets{rrlib};
+            }
+            if ($component{language} eq "java")
+            {
+                AddFiles $package_meta_data{$component}{lib}, "rrlib_%s.jar", $name, $$make_targets{rrlib};
+            }
+        }
+        if ($type eq "finroc")
+        {
+            if ($component{language} eq "cpp")
+            {
+                AddFiles $package_meta_data{$component}{lib}, "libfinroc_%s.so", $name, $$make_targets{'finroclibrary'};
+                AddFiles $package_meta_data{$component}{lib}, "libfinroc_%s.so", $name, $$make_targets{'finrocplugin'};
+                AddFiles $package_meta_data{$component}{pkg}, "finroc_%s.pc", $name, $$make_targets{'finroclibrary'};
+                AddFiles $package_meta_data{$component}{pkg}, "finroc_%s.pc", $name, $$make_targets{'finrocplugin'};
+#                push @{$package_meta_data{$component}{bin}}, map { $$_{name} } @{$$make_targets{'finrocprogram'}};
+            }
+            if ($component{language} eq "java")
+            {
+                AddFiles $package_meta_data{$component}{lib}, "finroc_%s.jar", $name, $$make_targets{'finroclibrary'};
+                AddFiles $package_meta_data{$component}{lib}, "finroc_%s.jar", $name, $$make_targets{'finrocplugin'};
+            }
+        }
+    }
+
+    push @global_lib, @{$package_meta_data{$component}{lib}};
+    push @global_bin, @{$package_meta_data{$component}{bin}};
+}
+INFOMSG "Done.\n";
+
+#print Dumper \%package_meta_data;
+
+
+#######################################
+##  Prepare and check build targets  ##
+#######################################
+
+my $temp_file = sprintf "/tmp/finroc-dpkg-buildpackage.%s", $$;
+system "makeSafeMakefile 2>&1 | tee $temp_file";
+
+open TEMP_FILE, "< $temp_file" or die $!;
+unlink $temp_file;
+foreach my $invalid_target (map { $1 if /Cannot build ([^\033]+)/ } grep { /Cannot build/ } <TEMP_FILE>)
+{
+    my $pattern = qr/$invalid_target/;
+    ERRORMSG sprintf "%s cannot be built!\n", $invalid_target if grep { $_ =~ $pattern } @global_bin or grep { $_ =~ $pattern } @global_lib;
+}
+close TEMP_FILE;
+
+
+##################################
+##  Add package configurations  ##
+##################################
+
+sub PackageName($)
+{
+    my ($component) = @_;
+    my $name = $component;
+    $name =~ s/_/-/g;
+    $name = sprintf "lib%s", $name if ${ComponentInfo $component}{type} eq "lib";
+    return $name;
+}
+
+my (@dbg_packages, @dev_packages);
+
+open CONTROL, ">> debian/control" or die $!;
+open RULES, ">> debian/rules" or die $!;
+printf RULES "\noverride_dh_strip:\n";
+foreach my $component (@components)
+{
+    my $type = ${ComponentInfo $component}{type};
+    unless (($type eq "exec") == scalar @{$package_meta_data{$component}{bin}})
+    {
+        ERRORMSG "Only packages that contain programs may be deduced as 'exec'. Something went wrong, as $component one is considered as '$type'!\n";
+    }
+
+    my $name = PackageName $component;
+
+    INFOMSG sprintf "Preparing %s\n", $name;
+
+    my $short_description = (${ComponentInfo $component}{description} or "<no description>");
+    my $long_description; # FIXME
+#    print Dumper $package_meta_data{$component}{dependencies};
+#    my $binary_dependencies = "";
+#    $binary_dependencies = sprintf ", %s", join ", ", map { sprintf "%s", PackageName $_ } @{$package_meta_data{$component}{dependencies}} if @{$package_meta_data{$component}{dependencies}};
+#    my $development_dependencies = "";
+#    $development_dependencies = sprintf ", %s", join ", ", map { sprintf "%s-dev", PackageName $_ } @{$package_meta_data{$component}{dependencies}} if @{$package_meta_data{$component}{dependencies}};
+
+    if ($package_meta_data{$component}{language} eq "cpp")
+    {
+        if ($type eq "lib")
+        {
+            my @dev_dependencies;
+            for my $lib (keys $package_meta_data{$component}{dev_dependencies})
+            {
+                my @packages = map { chomp; $_ } `grep '^$lib:' debian/libs.db | cut -d\\  -f2`;
+                unless (@packages)
+                {
+                    my $pkg_file = sprintf "%s.pc", $lib;
+                    @packages = map { chomp; $_ } `apt-file search $pkg_file | grep /$pkg_file | cut -d: -f1`;
+                    ERRORMSG sprintf "Could not find development package for library '%s'!\n", $lib unless @packages;
+                    ERRORMSG sprintf "Found multiple candidates for library '%s'!\n", $lib if 1 < scalar @packages;
+                }
+                my $version = join "", map { chomp; $_ } `apt-cache policy @packages | grep Installed | cut -d\\  -f4`;
+                ERRORMSG sprintf "Found development package '%s' for '%s' but is not installed!", @packages, $lib if $version eq "(none)";
+
+                push @dev_dependencies, sprintf "%s (>= %s)", @packages, $version;
+            }
+
+            @dev_dependencies = sort @dev_dependencies;
+            unshift @dev_dependencies, sprintf "%s (= \${binary:Version})", $name;
+
+            printf CONTROL "\nPackage: %s-dev\n", $name;
+            printf CONTROL "Section: libdevel\n";
+            printf CONTROL "Architecture: all\n";
+            printf CONTROL "Depends: %s\n", join ", ", @dev_dependencies;
+            printf CONTROL "Recommends: %s-dbg (= \${binary:Version})\n", $name;
+            printf CONTROL "Description: %s (unstable branch development files)\n", $short_description;
+            printf CONTROL " %s\n", $long_description if defined $long_description;
+            printf CONTROL "\nPackage: %s-dbg\n", $name;
+            printf CONTROL "Section: debug\n";
+            printf CONTROL "Architecture: any\n";
+            printf CONTROL "Depends: %s (= \${binary:Version})\n", $name;
+            printf CONTROL "Description: %s (unstable branch debug symbols)\n", $short_description;
+            printf CONTROL " %s\n", $long_description if defined $long_description;
+            printf CONTROL "\nPackage: %s\n", $name;
+            printf CONTROL "Section: libs\n";
+            printf CONTROL "Architecture: any\n";
+            printf CONTROL "Depends: \${shlibs:Depends}, \${misc:Depends}\n";
+            printf CONTROL "Suggests: %s-dbg (= \${binary:Version})\n", $name;
+            printf CONTROL "Description: %s (unstable branch)\n", $short_description;
+            printf CONTROL " %s\n", $long_description if defined $long_description;
+
+            open INSTALL, sprintf "> debian/%s-dev.install", $name or die $!;
+            my $header_prefix = "/usr/include";
+            $header_prefix .= "/finroc" if $package_meta_data{$component}{type} eq "finroc";
+            foreach (`find -L ${ComponentInfo $component}{directory} -name "*.h" -o -name "*.hpp"`)
+            {
+                chomp;
+                s/^sources\/cpp\///;
+                printf INSTALL "sources/cpp/%s %s/%s\n", $_, $header_prefix, dirname $_;
+            }
+            map { printf INSTALL "export/pkgconfig/%s /usr/lib/pkgconfig/\n", $_ } @{$package_meta_data{$component}{pkg}};
+            close INSTALL;
+            push @dev_packages, sprintf "%s-dev", $name;
+
+#            foreach (@{$package_meta_data{$component}{'pkg'}})
+#            {
+#                system sprintf "echo \"component=%s\" >> %s/%s/usr/lib/pkgconfig/%s", $component, $base_folder, $package_name, $_;
+#            }
+
+            printf RULES "\tdh_strip --package=%s --dbg-package=%s-dbg\n", $name, $name;
+            push @dbg_packages, sprintf "%s-dbg", $name;
+        }
+        if ($type eq "exec")
+        {
+            ERRORMSG "Oh oh...\n";
+        }
+
+        open INSTALL, sprintf "> debian/%s.install", $name or die $!;
+        map { printf INSTALL "export/%s/lib/%s /usr/lib/\n", $FINROC_TARGET, $_ } @{$package_meta_data{$component}{lib}};
+        close INSTALL
+    }
+    if ($package_meta_data{$component}{language} eq "java")
+    {
+        if ($type eq "lib")
+        {
+            printf CONTROL "\nPackage: %s\n", $name;
+            printf CONTROL "Section: java\n";
+            printf CONTROL "Architecture: all\n";
+            printf CONTROL "Depends: \${misc:Depends}\n";
+            printf CONTROL "Description: %s (unstable branch)\n", $short_description;
+            printf CONTROL " %s\n", $long_description if defined $long_description;
+        }
+        if ($type eq "exec")
+        {
+            printf CONTROL "\nPackage: %s\n", $name;
+            printf CONTROL "Section: java\n";
+            printf CONTROL "Architecture: all\n";
+            printf CONTROL "Depends: \${misc:Depends}\n";
+            printf CONTROL "Description: %s (unstable branch)\n", $short_description;
+            printf CONTROL " %s\n", $long_description if defined $long_description;
+        }
+
+        open INSTALL, sprintf "> debian/%s.install", $name or die $!;
+        map { printf INSTALL "export/java/%s /usr/share/java/\n", $_ } @{$package_meta_data{$component}{lib}};
+        close INSTALL;
+    }
+
+    my $copyright = sprintf "debian/%s.copyright", $name;
+    open COPYRIGHT, "> $copyright" or die $!;
+    printf COPYRIGHT "Format: http://dep.debian.net/deps/dep5\n";
+    printf COPYRIGHT "Upstream-Name: finroc\n";
+    printf COPYRIGHT "Source: http://www.finroc.org\n\n";
+
+    my %licenses;
+    sub CopyrightBlock($$$$)
+    {
+        my ($licenses, $files, $authors, $license) = @_;
+
+        printf COPYRIGHT "Files: %s\n", $files;
+        printf COPYRIGHT "Copyright: %s\n", join "\n           ", @$authors;
+        printf COPYRIGHT "License: %s\n\n", $license;
+        $$licenses{$license} = 1;
+    }
+
+    my $directory = ${ComponentInfo $component}{directory};
+    my @authors = map { chomp; s/.*author\s*//; $_ } `find \"$directory\" -type f | xargs fgrep '\\author' | cut -d: -f2 | sort | uniq | grep -v AUTHOR | grep -v matches`;
+    my $license = join "", map { chomp; $_ } lc basename `ls \"$directory\"/LICENSE.* 2> /dev/null` || "none";
+    $license =~ s/^license.//;
+$license = "gpl-2.0" if $license eq "finroc";
+    ERRORMSG sprintf "%s has no license information!\n", $name if $license eq "none";
+    CopyrightBlock \%licenses, "*", \@authors, $license;
+    CopyrightBlock \%licenses, "debian/*", [ "Tobias Föhst <foehst\@informatik.uni-kl.de>" ], "gpl-2.0";
+
+    map { system sprintf "cat debian/copyright.%s >> %s ; echo >> %s", $_, $copyright, $copyright } sort keys %licenses;
+
+    close COPYRIGHT;
+}
+close CONTROL;
+close RULES;
+
+open SUBSTVARS, "> debian/substvars" or die $!;
+printf SUBSTVARS "rrlib:DbgPackages=%s\n", join ", ", map { "$_ (= \${binary:Version})" } @dbg_packages;
+printf SUBSTVARS "rrlib:DevPackages=%s\n", join ", ", map { "$_ (= \${binary:Version})" } @dev_packages;
+printf SUBSTVARS "finroc:DbgPackages=%s\n", join ", ", map { "$_ (= \${binary:Version})" } @dbg_packages;
+printf SUBSTVARS "finroc:DevPackages=%s\n", join ", ", map { "$_ (= \${binary:Version})" } @dev_packages;
+close SUBSTVARS;
+
+open INSTALL, "> debian/finroc-run.install" or die $!;
+printf INSTALL "export/%s/bin/finroc_run /usr/bin/\n", $FINROC_TARGET;
+close INSTALL;
+
+open INSTALL, "> debian/finroc-tool-java.install" or die $!;
+printf INSTALL "export/%s/bin/finstruct /usr/bin/\n", $FINROC_TARGET;
+printf INSTALL "export/%s/bin/fingui /usr/bin/\n", $FINROC_TARGET;
+printf INSTALL "export/java/finstruct.jar /usr/share/java/\n";
+printf INSTALL "export/java/fingui.jar /usr/share/java/\n";
+close INSTALL;
+
+open INSTALL, "> debian/libenum-strings.install" or die $!;
+printf INSTALL "export/%s/lib/libenum_strings.so /usr/lib/\n", $FINROC_TARGET;
+close INSTALL;
+
+exit 0
