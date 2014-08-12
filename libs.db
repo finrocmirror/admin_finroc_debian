@@ -1,3 +1,4 @@
+boost: libboost-all-dev
 boost_iostreams: libboost-iostreams-dev
 boost_thread: libboost-thread-dev
 espeak: libespeak-dev

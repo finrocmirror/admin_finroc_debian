@@ -1,55 +1,54 @@
-Source: finroc
+Source: finroc-13.10
 Priority: extra
-Maintainer: Tobias Föhst <foehst@informatik.uni-kl.de>
-Build-Depends: debhelper (>= 7.0.50~), apt-file, libxml-simple-perl
-# curl?
+Maintainer: Tobias Föhst <foehst@finroc.org>
+Build-Depends: debhelper (>= 7.0.50~), ant, curl, language-pack-en, default-jdk, clang (>= 1:3.4), libclang-dev, llvm-dev, libxml-simple-perl, festival-dev, libboost-all-dev, libc6-dev, libcppunit-dev, libespeak-dev, libestools2.1-dev, libopencv-dev, libpthread-stubs0-dev, libxml2-dev, libxstream-java, libfontchooser-java, libsvgsalamander-java, libxpp3-java, libcoin80-dev
 Standards-Version: 3.9.1
 Section: libs
 Homepage: http://www.finroc.org
 
-Package: finroc-run
+Package: finroc-run-13.10
 Section: misc
 Architecture: any
-Depends: libfinroc-plugins-runtime-construction (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: libfinroc-plugins-runtime-construction-13.10 (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Description: Utility for Finroc's runtime construction plugin (unstable branch)
  <insert long description, indented with spaces>
- 
-Package: finroc-tools-java
+
+Package: finroc-tools-13.10-java
 Section: misc
 Architecture: all
-Depends: libfinroc-core-java (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: default-jre, graphviz, ${java:Depends}, ${misc:Depends}
 Description: Finroc Java Tools (unstable branch)
  <insert long description, indented with spaces>
- 
-Package: libenum-strings
+
+Package: libenum-strings-13.10
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Support library to translate between C++ enums and strings (unstable branch)
  <insert long description, indented with spaces>
 
-Package: librrlib-all-dbg
+Package: librrlib-13.10-all-dbg
 Section: debug
 Architecture: all
 Depends: ${rrlib:DbgPackages}
 Description: RRLib C++ debug symbols (ALL) (unstable branch)
  <insert long description, indented with spaces>
 
-Package: librrlib-all-dev
+Package: librrlib-13.10-all-dev
 Section: libdevel
 Architecture: all
 Depends: ${rrlib:DevPackages}
 Description: RRLib C++ development files (ALL) (unstable branch)
  <insert long description, indented with spaces>
 
-Package: libfinroc-all-dbg
+Package: libfinroc-13.10-all-dbg
 Section: debug
 Architecture: all
 Depends: ${finroc:DbgPackages}
 Description: Finroc C++ debug symbols (ALL) (unstable branch)
  <insert long description, indented with spaces>
 
-Package: libfinroc-all-dev
+Package: libfinroc-13.10-all-dev
 Section: libdevel
 Architecture: all
 Depends: ${finroc:DevPackages}

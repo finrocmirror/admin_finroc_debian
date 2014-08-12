@@ -1,0 +1,52 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use Cwd;
+use File::Temp qw(tempdir);
+
+my $working_dir = cwd;
+my $temp_dir = tempdir(CLEANUP => 1);
+foreach my $package (split /\s/, `ls -d debian/*-java 2> /dev/null`)
+{
+    my @dependencies;
+
+    chdir $temp_dir or die "Could not chdir to '$temp_dir': $!";
+    foreach my $jar (split /\s/, `find "$working_dir/$package" -name "*.jar"`)
+    {
+        system "jar -xf '$jar' META-INF/MANIFEST.MF";
+        open MANIFEST, "<META-INF/MANIFEST.MF" or die "Could not read manifest: $!";
+        my $class_path;
+        while (<MANIFEST>)
+        {
+            if ($class_path)
+            {
+                if (/^ (.*)\r/)
+                {
+                    $class_path .= $1;
+                    next;
+                }
+                last;
+            }
+            $class_path = $1 if /^Class-Path: (.*)\r/;
+        }
+
+        next unless $class_path;
+
+        my @external_jars = map { s/^lib\///; $_} grep /^lib/, split " ", $class_path;
+        foreach (@external_jars)
+        {
+            my @debs = map { chomp; $_ } `dpkg-query -S $_ | cut -d: -f1`;
+            die sprintf "Could not find debian package containing '%s'!\n", $_ unless @debs;
+            printf "Found multiple candidates for jar '%s'. Using the first one: %s!\n", $_, $debs[0] if 1 < scalar @debs;
+            my $version = join "", map { chomp; $_ } `dpkg-query -s $debs[0] | grep ^Version: | cut -d\\  -f2`;
+            push @dependencies, sprintf "%s (>= %s)", $debs[0], $version;
+        }
+    }
+    unlink "META-INF/MANIFEST.MF" or die "Could not clean up: $!";
+    chdir $working_dir;
+
+    open SUBSTVARS, ">>$package.substvars" or die $!;
+    printf SUBSTVARS "java:Depends=%s\n", join ", ", @dependencies;
+    close SUBSTVARS;
+}

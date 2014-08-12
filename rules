@@ -3,31 +3,54 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+RELEASE := $(shell dpkg-parsechangelog -Sversion | cut -d+ -f1)
+
 %:
 	dh $@ --parallel
 
-override_dh_clean:
-	dh_clean
-	rm -f debian/substvars debian/*.install debian/*.copyright debian/control debian/rules
-	for i in debian/*.in ; do cp $${i} $$(echo $${i} | sed -e 's/\.in$$//') ; done
-	rm -rf .offline .finroc.conf Makefile libinfo.h etc/targets/*_release_dpkg
-
 override_dh_auto_clean:
 	@ant -f make_builder/build.xml clean 2> /dev/null || true
-	rm -f make_builder/etc/libdb.java make_builder/etc/libdb.txt
 	rm -rf export build
+	rm -f make_builder/etc/libdb.java make_builder/etc/libdb.txt
+
+override_dh_clean:
+	dh_clean
+	rm -f debian/*.substvars debian/*.install debian/*.links debian/*.copyright debian/control
+	for i in debian/*.in ; do cp $${i} $$(echo $${i} | sed -e 's/\.in$$//') ; done
+	sed -i 's/<RELEASE>/$(RELEASE)/' debian/control
+	rm -rf .offline .finroc.conf .makeBuilderCache Makefile libinfo.h etc/targets/*_release-dpkg
+	rm -rf .project .cproject .includepath
+	find . -path "*/.hg/strip-backup" -o -path "*/.hg/last-message.txt" | xargs rm -rf
+	bash -c 'test $$(dpkg-parsechangelog -Ssource | cut -d- -f2) == $(RELEASE)'
 
 override_dh_auto_configure:
-#	dh_auto_configure
-	for i in etc/targets/*_release ; do cp $${i} $${i}_dpkg ; done
-	sed -i 's/CFLAGS=/CFLAGS=-ggdb /' etc/targets/*_release_dpkg
-	apt-file update > /dev/null
-	bash -c 'source scripts/setenv -m release_dpkg ; [[ -n $$FINROC_HOME ]] && debian/generate_packages'
-	apt-file purge
+	for i in etc/targets/*_release ; do cp $${i} $${i}-dpkg ; done
+	sed -i 's/CFLAGS=/CFLAGS=-ggdb /' etc/targets/*_release-dpkg
+	bash -c '[[ -f Makefile ]] && exit ; source scripts/setenv -r yes -m release-dpkg ; [[ -n $$FINROC_HOME ]] && debian/generate_packages $(RELEASE)'
 
-#override_dh_auto_build:
+override_dh_auto_build:
+	scripts/makeSafe
+
 override_dh_auto_test:
 
+override_dh_installdocs:
+	for i in debian/*-dbg ; do p=$$(echo $$(basename $$i) | sed -e 's/-dbg$$//') ; dh_installdocs --link-doc=$$p --package=$$p-dbg --no-package=librrlib-$(RELEASE)-all-dbg --no-package=libfinroc-$(RELEASE)-all-dbg; done
+	dh_installdocs --remaining-packages
+
+override_dh_link:
+	echo /usr/share/java /usr/share/java/lib > debian/finroc-tools-$(RELEASE)-java.links
+	dh_link
+
+override_dh_strip:
+	for i in debian/*-dbg ; do p=$$(echo $$(basename $$i) | sed -e 's/-dbg$$//') ; dh_strip --package=$$p --dbg-package=$$p-dbg --no-package=librrlib-$(RELEASE)-all --no-package=libfinroc-$(RELEASE)-all; done
+
+override_dh_shlibdeps:
+	dh_shlibdeps
+	debian/java_dependencies
+
 override_dh_gencontrol:
-	dh_gencontrol --package=librrlib-all-dbg --package=librrlib-all-dev --package=libfinroc-all-dbg --package=libfinroc-all-dev 
-	dh_gencontrol --remaining-packages
+	perl -e 'chdir "debian"; printf "rrlib:DevPackages=%s\n", join ", ", grep !/^librrlib-$(RELEASE)-all-dev$$/, map { chomp; $$_ } `ls -d librrlib*-dev`;' >> debian/librrlib-$(RELEASE)-all-dev.substvars
+	perl -e 'chdir "debian"; printf "rrlib:DbgPackages=%s\n", join ", ", grep !/^librrlib-$(RELEASE)-all-dbg$$/, map { chomp; $$_ } `ls -d librrlib*-dbg`;' >> debian/librrlib-all-$(RELEASE)-dbg.substvars
+	perl -e 'chdir "debian"; printf "finroc:DevPackages=%s\n", join ", ", grep !/^libfinroc-$(RELEASE)-all-dev$$/, map { chomp; $$_ } `ls -d libfinroc*-dev`;' >> debian/libfinroc-$(RELEASE)-all-dev.substvars
+	perl -e 'chdir "debian"; printf "finroc:DbgPackages=%s\n", join ", ", grep !/^libfinroc-$(RELEASE)-all-dbg$$/, map { chomp; $$_ } `ls -d libfinroc*-dbg`;' >> debian/libfinroc-$(RELEASE)-all-dbg.substvars
+	dh_gencontrol

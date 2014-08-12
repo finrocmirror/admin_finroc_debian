@@ -1,5 +1,5 @@
-finroc (13.10-1) unstable; urgency=low
+finroc-13.10 (13.10+20140811161705-0ubuntu1) stable; urgency=low
 
-  * Initial debianization of finroc (development branch after release of 13.10)
+  * Initial debianization of finroc (13.10 branch)
 
- -- Tobias Föhst <foehst@informatik.uni-kl.de>  Tue, 18 Feb 2014 16:54:02 +0100
+ -- Tobias Föhst <foehst@finroc.org>  Tue, 12 Aug 2014 18:54:02 +0200

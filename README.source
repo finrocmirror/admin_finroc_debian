@@ -1,26 +1,46 @@
-finroc for Debian
+Finroc for Debian
 -----------------
 
 1. General note
 
-This Debian source package was created from a finroc working copy that
+This Debian source package was created from a Finroc working copy that
 consists of several checked out repositories and has its own component
 manager finroc_get.
-This brings no restrictions to treating this as a native Debian source
-package. You can directly change the source code (found below sources)
-and build Debian packages using e.g. dpkg-buildpackage.
-To compile finroc standalone with four compiler threads, run
+Therefore, the quilt format is used. Modifications are typically made
+by cloning the original repositories and using the branches as original
+codebase for packaging. Like an intermediate upstream. Optionally,
+changes may be made via debian/patches and quilt. This method is also
+to be chosen if changes are specific to the packaging process.
+
+
+2. Building the package
+
+Finroc uses a build environment that contains needed configuration and
+script. It must be set up by sourcing a shell script. To compile Finroc
+standalone with four compiler threads, run
   source scripts/setenv
   makeSafe -j4
+debian/rules takes care of these steps to allow building Debian packages
+directly running e.g. dpkg-buildpackage.
+
+During configuration the build system's library handles must be mapped
+to Debian packages as build- or dev-dependencies. This can typically be
+done via pkg-config. If packaging terminates with an error message a la
+"Could not find development package for library 'some_lib'!" a suitable
+entry should be added to debian/libs.db. E.g
+some_lib: libsome-lib-dev
 
 
-2. Upgrading to new upstream version
+3. Upgrading to new upstream version
 
 Upgrading this Debian source package to a new upstream version, is best
-done by getting a newer finroc version from finroc.org as described on
+done by getting a newer Finroc version from finroc.org as described on
 http://www.finroc.org/wiki/Getting%20started. Additionally, get
 a) the needed components (at least the ones found in this source package),
 b) the according branch of https://finroc.org/hg/admin_finroc_debian as
    new finroc/debian folder,
 update its changelog and create a new source package by running
   dpkg-buildpackage -S
+
+Use the latest revision's timestamp (utc) as version number in the form
+$RELEASE+yymmddhhmmss.
