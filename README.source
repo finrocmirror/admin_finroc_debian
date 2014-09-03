@@ -16,7 +16,7 @@ to be chosen if changes are specific to the packaging process.
 2. Building the package
 
 Finroc uses a build environment that contains needed configuration and
-script. It must be set up by sourcing a shell script. To compile Finroc
+scripts. It must be set up by sourcing a shell script. To compile Finroc
 standalone with four compiler threads, run
   source scripts/setenv
   makeSafe -j4
@@ -33,14 +33,18 @@ some_lib: libsome-lib-dev
 
 3. Upgrading to new upstream version
 
-Upgrading this Debian source package to a new upstream version, is best
-done by getting a newer Finroc version from finroc.org as described on
-http://www.finroc.org/wiki/Getting%20started. Additionally, get
-a) the needed components (at least the ones found in this source package),
-b) the according branch of https://finroc.org/hg/admin_finroc_debian as
-   new finroc/debian folder,
-update its changelog and create a new source package by running
-  dpkg-buildpackage -S
+Upgrade the source tree using the provided scripts as you would usually
+do when working with Finroc. That means, run e.g.
+  source scripts/setenv
+  finroc_update
+to upgrade the whole tree.
 
-Use the latest revision's timestamp (utc) as version number in the form
-$RELEASE+yymmddhhmmss.
+After altering the source tree, run debian/new_version (which also needs)
+a setup environment:
+  source scripts/setenv
+  debian/new_version
+
+This script collects information from source control management,
+increments the version number, generates the changelog and creates the
+new archive. Make sure, that the new package can be built and add needed
+entries to e.g. debian/libs.db.

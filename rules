@@ -20,7 +20,8 @@ override_dh_clean:
 	sed -i 's/<RELEASE>/$(RELEASE)/' debian/control
 	rm -rf .offline .finroc.conf .makeBuilderCache Makefile libinfo.h etc/targets/*_release-dpkg
 	rm -rf .project .cproject .includepath
-	find . -path "*/.hg/strip-backup" -o -path "*/.hg/last-message.txt" | xargs rm -rf
+	find . -name "*~" -print0 | xargs -0 rm -f
+	find . -path "*/.hg/strip-backup" -o -path "*/.hg/last-message.txt" -print0 | xargs -0 rm -rf
 	bash -c 'test $$(dpkg-parsechangelog -Ssource | cut -d- -f2) == $(RELEASE)'
 
 override_dh_auto_configure:

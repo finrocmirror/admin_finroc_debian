@@ -1,0 +1,454 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use Env '$FINROC_HOME';
+
+use Encode;
+$FINROC_HOME = decode_utf8 $FINROC_HOME;
+
+use lib "$FINROC_HOME/scripts/perl";
+use FINROC::messages;
+use FINROC::getopt;
+use FINROC::sources;
+use FINROC::scm;
+use FINROC::components;
+use FINROC::utilities;
+
+use open qw(:std :utf8);
+
+use POSIX 'strftime';
+use File::Copy;
+use File::Basename;
+
+use Cwd;
+use Cwd 'abs_path';
+
+
+
+my $source_stats_file = "debian/source/status";
+my $changelog_file = "debian/changelog";
+my $news_file = "debian/NEWS.Debian";
+
+
+
+############################
+##  Command line options  ##
+############################
+
+SetHelp undef, {}, undef;
+
+ParseCommandLine [], undef;
+
+
+
+##############################################
+INFOMSG "Gathering maintainer information.\n";
+##############################################
+
+use Env qw($DEBFULLNAME $NAME $DEBEMAIL $EMAIL);
+$DEBFULLNAME = decode_utf8 $DEBFULLNAME;
+$NAME = decode_utf8 $NAME;
+$DEBEMAIL = decode_utf8 $DEBEMAIL;
+$EMAIL = decode_utf8 $EMAIL;
+
+if ($DEBEMAIL && $DEBEMAIL =~ /^(.*)\s+<(.*)>$/)
+{
+    $DEBFULLNAME = $1 unless $DEBFULLNAME;
+    $DEBEMAIL = $2;
+}
+unless ($DEBEMAIL && $DEBFULLNAME)
+{
+    if ($EMAIL && $EMAIL =~ /^(.*)\s+<(.*)>$/)
+    {
+	$DEBFULLNAME = $1 unless $DEBFULLNAME;
+	$EMAIL = $2;
+    }
+}
+
+sub GetNameFromOS()
+{
+    my @data = getpwuid $<;
+    (my $name = decode_utf8 $data[6]) =~ s/,.*// if $data[6];
+    return $name;
+}
+sub GetEmailFromOS()
+{
+    my $host;
+    if (open MAILNAME, "/etc/mailname")
+    {
+	chomp($host = <MAILNAME>);
+	close MAILNAME;
+    }
+    chomp($host = `hostname --fqdn 2> /dev/null`) unless $host;
+    return sprintf "%s\@$host", getpwuid $<;
+}
+my $maintainer = $DEBFULLNAME || $NAME || GetNameFromOS;
+my $email = $DEBEMAIL || $EMAIL || GetEmailFromOS;
+
+my $date = strftime "%a, %d %b %Y %H:%M:%S %z", localtime;
+
+
+
+#######################################
+INFOMSG "Reading old source status.\n";
+#######################################
+
+my %source_stats;
+if (-f $source_stats_file)
+{
+    open SOURCE_STATS, "<$source_stats_file" or die "Could not open $source_stats_file: $!\n";
+    while (<SOURCE_STATS>)
+    {
+	chomp;
+	my ($label, $id) = split "\t";
+	$source_stats{$label} = { id => $id,
+				  component => GetComponentNameFromDirectory(abs_path join "/", ($FINROC_HOME, $label)),
+				  state => 'removed'};
+    }
+    close SOURCE_STATS;
+}
+${$source_stats{'.'}}{component} = "finroc";
+
+
+
+##########################################
+INFOMSG "Collecting new source status.\n";
+##########################################
+
+sub Identify($$)
+{
+    my ($directory, $scm) = @_;
+
+    if ($scm eq "hg")
+    {
+        chomp(my $id = `hg --cwd '$directory' id --id`);
+	$id =~ s/\+$//;
+        return $id;
+    }
+    die "unsupported scm\n";
+}
+
+sub Timestamp($$)
+{
+    my ($directory, $scm) = @_;
+
+    if ($scm eq "hg")
+    {
+        chomp(my $timestamp = `perl -e "print \$(hg --cwd '$directory' log -r. --template '{date}')"`);
+	return strftime "%Y%m%d%H%M%S", localtime $timestamp;
+    }
+    die "unsupported scm\n";
+}
+
+sub Branch($$)
+{
+    my ($directory, $scm) = @_;
+
+    return "unstable" if IsOnDefaultBranch $directory;
+    if ($scm eq "hg")
+    {
+        chomp(my $branch = `hg --cwd '$directory' branch`);
+     
+	return $branch;
+    }
+    die "unsupported scm\n";
+}
+
+sub CollectAuthors($$)
+{
+    my ($directory, $scm) = @_;
+
+    if ($scm eq "hg")
+    {
+	my $command = sprintf "hg --cwd '%s' log --template '{author|person}\n' -r::. | sort | uniq", $directory;
+	DEBUGMSG sprintf "Executing '%s'\n", $command;
+        chomp(my @authors = `$command`);
+	ERRORMSG "Command failed!\n" if $?;
+        return \@authors;
+    }
+    die "unsupported scm\n";
+}
+
+sub CollectChanges($$$)
+{
+    my ($directory, $scm, $old_rev) = @_;
+
+    if ($scm eq "hg")
+    {
+	$old_rev = "" unless $old_rev;
+	my $command = sprintf "hg --cwd '%s' log --template '{rev}\n' -r'ancestors(.) and not ancestors(%s) and not merge()'", $directory, $old_rev;
+	DEBUGMSG sprintf "Executing '%s'\n", $command;
+	chomp(my @revs = `$command`);
+	ERRORMSG "Command failed!\n" if $?;
+	my %changes;
+	foreach my $rev (@revs)
+	{
+	    my $command = sprintf "hg --cwd '%s' log --template '{author|person}\n' -r'%s'", $directory, $rev;
+	    DEBUGMSG sprintf "Executing '%s'\n", $command;
+	    chomp(my $author = `$command`);
+	    ERRORMSG "Command failed!\n" if $?;
+	    $changes{$author} = [] unless $changes{$author};
+	    $command = sprintf "hg --cwd '%s' log --template '{desc}\n' -r'%s'", $directory, $rev;
+	    DEBUGMSG sprintf "Executing '%s'\n", $command;
+	    chomp(my $change = `$command`);
+	    ERRORMSG "Command failed!\n" if $?;
+	    push @{$changes{$author}}, $change;
+	}
+        return \%changes;
+    }
+    die "unsupported scm\n";
+}
+
+sub max($$) { $_[$_[0] < $_[1]] }
+
+my $latest_timestamp = 0;
+my %branches;
+my $uncommitted_modifications_found = 0;
+
+my (@added, @modified, @removed);
+
+my %directories = FindWorkingCopyBaseFolders;
+my ($processed, $total) = (0, scalar keys %directories);
+my $progress = "";
+$| = 1;
+foreach my $directory (sort keys %directories)
+{
+    print "\b" x length $progress;
+    $progress = sprintf "%d/%d", ++$processed, $total;
+    print $progress;
+
+    (my $label = $directory) =~ s/^\Q$FINROC_HOME\E/./;
+
+    my $scm = FINROC::scm::GetSCMNameFromWorkingCopy $directory;
+    my $uncommitted_modifications = Status $directory, 1, 0, undef, undef;
+    $uncommitted_modifications_found = 1 if $uncommitted_modifications;
+    $branches{Branch $directory, $scm} = 1 unless $label eq "./make_builder";
+    $latest_timestamp = max $latest_timestamp, Timestamp $directory, $scm;
+
+    unless ($source_stats{$label})
+    {
+	$source_stats{$label} = { id => Identify($directory, $scm),
+				  component => GetComponentNameFromDirectory($directory),
+				  authors => CollectAuthors($directory, $scm),
+				  state => 'added' };
+	push @added, $label;
+	next;
+    }
+    my $old_id = $source_stats{$label}{id};
+    $source_stats{$label}{id} = Identify $directory, $scm;
+    $source_stats{$label}{state} = 'seen';
+    next unless $source_stats{$label}{id} ne $old_id || $uncommitted_modifications;
+
+    $source_stats{$label}{changes} = CollectChanges $directory, $scm, $old_id;
+    if ($uncommitted_modifications)
+    {
+	$source_stats{$label}{changes} = {} unless $source_stats{$label}{changes};
+	$source_stats{$label}{changes}{$maintainer} = [] unless $source_stats{$label}{changes}{$maintainer};
+	push @{$source_stats{$label}{changes}{$maintainer}}, sprintf "\n### Describe uncommitted modifications (and delete this block): ###\n%s\n### end of modifications ###", join "\n", map { sprintf "## %s", $_ } split "\n", $uncommitted_modifications;
+    }
+    push @modified, $label;
+}
+print "\b" x length $progress;
+@removed = grep $source_stats{$_}{state} eq 'removed', keys %source_stats;
+
+
+
+#############################################
+INFOMSG "Determining new package version.\n";
+#############################################
+
+chomp(my $source = `dpkg-parsechangelog -Ssource`);
+chomp(my $version = `dpkg-parsechangelog -Sversion`);
+my (undef, $epoch, $uversion, $dversion) = ($version =~ /^((\d+):)?(.+?)-([^-]+)$/);
+$dversion =~ s/[^\w\.].*$//;
+
+(my $new_dversion = $dversion) =~ s/[\d\.]+(?=\w+\d)/0/g;
+$new_dversion =~ s/[\d\.]+$/1/;
+
+my ($release, $timestamp) = ($uversion =~ /^([\d\.]+)\+(.*)$/);
+my $new_release = Branch ".", FINROC::scm::GetSCMNameFromWorkingCopy ".";
+if (scalar keys %branches > 1)
+{
+    WARNMSG("More than one branches active!\n".
+	    "I will use the release information of the base folder ($new_release), but note the mixed state and check if this really is what you want.\n");
+    INFOMSG "Do you want to continue? [Y/n] ";
+    if (<STDIN> =~ /^n/)
+    {
+        INFOMSG "Abort.\n";
+        exit 1;
+    }
+}
+
+my $new_timestamp = $latest_timestamp;
+if ($uncommitted_modifications_found)
+{
+    WARNMSG("The source tree contains uncommitted modifications!\n".
+	    "This is not necessarily a problem, but might lead to ambiguous package versions by using the current timestamp (not represented in scm).\n");
+    INFOMSG "Do you want to continue? [Y/n] ";
+    if (<STDIN> =~ /^n/)
+    {
+        INFOMSG "Abort.\n";
+        exit 1;
+    }
+    $new_timestamp = eval { strftime "%Y%m%d%H%M%S", gmtime};
+}
+
+my $new_uversion = join "+", ($new_release, $new_timestamp);
+my $new_version = join "-", ($new_uversion, $new_dversion);
+$new_version = join ":", ($epoch, $new_version) if $epoch;
+
+my $command = sprintf "dpkg --compare-versions %s lt %s", $version, $new_version;
+DEBUGMSG sprintf "Executing '%s'\n", $command;
+if (system $command)
+{
+    ERRORMSG "New version is not greater than the old one!\n" unless @added || @removed;
+
+    WARNMSG sprintf("The version determined from release and scm timestamps is not greater than the old one!\n".
+		    "Workaround: increasing the old version as components were added or removed. Note that this might lead to ambiguous package versions.\n");
+    INFOMSG "Do you want to continue? [Y/n] ";
+    if (<STDIN> =~ /^n/)
+    {
+	INFOMSG "Abort.\n";
+	exit 1;
+    }
+
+    ($timestamp, my $offset) = split /\+/, $timestamp;
+    $offset++;
+
+    $new_uversion = join "+", ($new_release, $new_timestamp, $offset);
+    $new_version = join "-", ($new_uversion, $new_dversion);
+    $new_version = join ":", ($epoch, $new_version) if $epoch;
+}
+
+if ($new_release ne $release)
+{
+    $source = sprintf "finroc-%s", $new_release;
+}
+
+
+
+########################################
+INFOMSG "Writing changelog and news.\n";
+########################################
+
+my $changelog = sprintf "%s (%s) UNRELEASED; urgency=low\n\n", $source, $new_version;
+$changelog .= "### This entry was generated from SCM log. Therefore, it is most likely too elaborate.\n";
+$changelog .= "### Please review and change it according to\n";
+$changelog .= "### https://www.debian.org/doc/manuals/developers-reference/best-pkging-practices.html#bpp-debian-changelog\n";
+$changelog .= "### Also, delete this block.\n";
+if (@modified)
+{
+    $changelog .= "  * Upstream modifications\n";
+    foreach my $entry (sort { $$a{component} cmp $$b{component} } @source_stats{@modified})
+    {
+	$changelog .= sprintf "\n    == %s ==%s\n", $$entry{component}, join "\n", map { sprintf "\n      [%s]\n%s", $_, join "\n", map { my @lines = split "\n"; join "\n", map { s/^/      /; $_ } @lines; } @{$$entry{changes}{$_}} } sort keys %{$$entry{changes}};
+    }
+    $changelog .= "\n";
+}
+if (@added)
+{
+    $changelog .= "  * Added components\n";
+    foreach my $entry (sort { $$a{component} cmp $$b{component} } @source_stats{@added})
+    {
+	$changelog .= sprintf "    %s\n      (involved authors: %s)\n", $$entry{component}, join ", ", sort @{$$entry{authors}};
+    }
+    $changelog .= "\n";
+}
+if (@removed)
+{
+    $changelog .= "  * Removed\n";
+    foreach my $entry (sort { $$a{component} cmp $$b{component} } @source_stats{@removed})
+    {
+	$changelog .= sprintf "    - %s\n", $$entry{component};
+    }
+    $changelog .= "\n";
+}
+$changelog .= sprintf " -- %s <%s>  %s\n\n", $maintainer, $email, $date;
+
+my $modification_required = 1;
+sub UpdateLogFile($$)
+{
+    my ($file, $log) = @_;
+
+    if (-f $file)
+    {
+	local $/ = undef;
+	open LOG_FILE, "<$file" or die "Could not open $file: $!\n";
+	$log .= <LOG_FILE>;
+	close LOG_FILE;
+    }
+
+    open LOG_FILE, ">$file.tmp" or die "Could not open $file.tmp: $!\n";
+    print LOG_FILE $log;
+    close LOG_FILE;
+
+    my $mtime = (stat "$file.tmp")[9];
+    $mtime--;
+    utime $mtime, $mtime, "$file.tmp";
+
+    system sprintf "sensible-editor +0:%d $file.tmp", 5 + length $source.$new_version;
+    ERRORMSG sprintf "Error editing %s!\n", $file if $?;
+
+    my $new_mtime = (stat "$file.tmp")[9];
+    ERRORMSG sprintf "%s unmodified!\n", $file if $modification_required && $new_mtime == $mtime;
+
+    copy "$file.tmp", $file or ERRORMSG sprintf "Could not replace %s with new version!\n", $file;
+    map { unlink } ( "$file.tmp", "$file.tmp~");
+}
+
+if ($new_release ne $release)
+{
+    UpdateLogFile $news_file, $changelog;
+
+    open NEWS, "<$news_file" or die "Could not open $news_file: $!\n";
+    $changelog = <NEWS>;
+    close NEWS;
+
+    $changelog .= "\n";
+    $changelog .= sprintf "  * New upstream release: %s\n", $new_release;
+    $changelog .= sprintf "    (see %s for more detailed information)\n\n", basename $news_file;
+    $changelog .= sprintf " -- %s <%s>  %s\n\n", $maintainer, $email, $date;
+    $modification_required = 0;
+}
+
+UpdateLogFile $changelog_file, $changelog;
+
+if ($new_release ne $release)
+{
+    chomp(my $news_head = `head -n1 $news_file`);
+    chomp(my $changelog_head = `head -n1 $changelog_file`);
+    ERRORMSG sprintf "%s and %s do not match!\n", $news_file, $changelog_file if $news_head ne $changelog_head;
+}
+chomp($source = `dpkg-parsechangelog -Ssource`);
+chomp($new_version = `dpkg-parsechangelog -Sversion`);
+(undef, undef, $new_uversion, undef) = ($new_version =~ /^((\d+):)?(.+?)-([^-]+)$/);
+
+
+
+#########################################
+INFOMSG "Creating new source archive.\n";
+#########################################
+
+my $source_archive = sprintf "../%s_%s.orig.tar.gz", $source, $new_uversion;
+ERRORMSG sprintf "Archive %s already exists!\n", $source_archive if -f $source_archive;
+$command = sprintf "dh clean && tar -czf %s --exclude debian --transform 's,^\./,finroc/,' .", $source_archive;
+DEBUGMSG sprintf "Executing '%s'\n", $command;
+system $command;
+ERRORMSG "Command failed!\n" if $?;
+
+
+
+#######################################
+INFOMSG "Writing new source status.\n";
+#######################################
+
+open SOURCE_STATS, ">$source_stats_file" or die "Could not open $source_stats_file: $!\n";
+map { printf SOURCE_STATS "%s\t%s\n", $_, $source_stats{$_}{id} } sort keys %source_stats;
+close SOURCE_STATS;
+
+
+
+##################
+INFOMSG "Done.\n";
+##################
