@@ -1,3 +1,13 @@
+finroc-13.10 (13.10+20140901161533-0ubuntu1) stable; urgency=low
+
+  * Upstream modifications
+
+    == finroc_core ==
+      [Max Reichardt]
+      Added missing include
+
+ -- Tobias Föhst <foehst@finroc.org>  Thu, 04 Sep 2014 09:57:52 +0200
+
 finroc-13.10 (13.10+20140811161705-0ubuntu2) stable; urgency=low
 
   * Adds a script to update to a new version after altering the source tree (along with changelog, archive, etc)
