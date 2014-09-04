@@ -134,7 +134,7 @@ INFOMSG "Done.\n";
 #######################################
 
 my $temp_file = sprintf "/tmp/finroc-dpkg-buildpackage.%s", $$;
-system "makeSafeMakefile 2>&1 | tee $temp_file";
+system "make makefile 2>&1 | tee $temp_file";
 
 open TEMP_FILE, "< $temp_file" or die $!;
 unlink $temp_file;

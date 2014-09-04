@@ -18,7 +18,7 @@ override_dh_clean:
 	rm -f debian/*.substvars debian/*.install debian/*.links debian/*.copyright debian/control
 	for i in debian/*.in ; do cp $${i} $$(echo $${i} | sed -e 's/\.in$$//') ; done
 	sed -i 's/<RELEASE>/$(RELEASE)/' debian/control
-	rm -rf .offline .finroc.conf .makeBuilderCache Makefile libinfo.h etc/targets/*_release-dpkg
+	rm -rf .offline .finroc.conf .makeBuilderCache Makefile.generated libinfo.h etc/targets/*_release-dpkg
 	rm -rf .project .cproject .includepath
 	find . -name "*~" -print0 | xargs -0 rm -f
 	find . -path "*/.hg/strip-backup" -o -path "*/.hg/last-message.txt" -print0 | xargs -0 rm -rf
@@ -27,10 +27,7 @@ override_dh_clean:
 override_dh_auto_configure:
 	for i in etc/targets/*_release ; do cp $${i} $${i}-dpkg ; done
 	sed -i 's/CFLAGS=/CFLAGS=-ggdb /' etc/targets/*_release-dpkg
-	bash -c '[[ -f Makefile ]] && exit ; source scripts/setenv -r yes -m release-dpkg ; [[ -n $$FINROC_HOME ]] && debian/generate_packages $(RELEASE)'
-
-override_dh_auto_build:
-	scripts/makeSafe
+	bash -c '[[ -f Makefile.generated ]] && exit ; source scripts/setenv -r yes -m release-dpkg ; [[ -n $$FINROC_HOME ]] && debian/generate_packages $(RELEASE)'
 
 override_dh_auto_test:
 

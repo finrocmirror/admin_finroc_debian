@@ -1,0 +1,146 @@
+finroc-14.08 (14.08+20140902214942-0ubuntu1) stable; urgency=low
+
+  * General changes
+
+    - Build system
+      The make-scripts were replaces by a Makefile for better support in IDEs etc.
+      Test programs are integrated in default build target and must behave as unit tests
+      Other "test programs" had more example characteristics.  Hence this category was added
+      make.xml files were adapted accordingly
+      compiler flags were adjusted to support clang as well as newer versions of GCC
+      Improved supoprt for cross-compiling
+    - C++11 features were further applied, e.g. override keyword
+    - Dependencies to boost were removed were possible
+    - Various bugfixes
+    - Improved code appearance and performance by applying more C++11 technology
+    - Finroc environment
+      Scripts to generate components lists were moved to new repository admin_finroc_server (see http://www.finroc.org/wiki/Tutorials/Advanced/Hosting%20Finroc%20Repositories)
+      Current architecture and OS are determined via uname instead of perl's Config module
+      Added handling of cuda header files to finroc_code_formatter
+    - Added components
+      rrlib_localization
+        (involved authors: Jens Wettach, Max Reichardt, Michael Arndt, Tobias Föhst)
+      rrlib_logging-java
+        (involved authors: Max Reichardt, Tobias Föhst)
+      rrlib_serialization-java
+        (involved authors: Max Reichardt, Tobias Föhst)
+      rrlib_si_units
+        (involved authors: Max Reichardt, Michael Arndt, Tobias Föhst)
+      rrlib_xml-java
+        (involved authors: Max Reichardt, Tobias Föhst)
+
+  * C++ components
+
+    - rrlib_util
+      Added traceable exceptions
+      Added symbol demangling
+      Added slim collection of string utility functions
+      Marked outdated RRLIB_FINAL_CLASS deprecated.  Use C++11's final specifier instead.
+
+    - rrlib_design_patterns
+      Made exceptions that are thrown on dead references traceable
+      Changed tLifetimeTrackerList's own lifetime to PhoenixSingleton
+
+    - rrlib_logging
+      Changed singleton lifetimes to support log messages in destructors of objects that were created earlier than the log domain registry
+      Improved performance of message processing
+
+    - rrlib_math
+      Removed sparse storage policies for tMatrix as experience shows that matrices typically are not large enough to justify the complexity
+      Major changes in tAngle that will need adaption of your code:
+        + Made one-argument-constructor of tAngle explicit
+        + Made conversion to TElement explicit that avoids many unwanted conversions
+          static_cast to TElement must be called explicitly
+          .Value() can be used to access raw value directly
+        + Redesigned signedness as AutoWrap policy
+          Signed automatically wraps values to signed circle (default)
+          Unsigned automatically wraps values to signed circle
+          Added NoWrap for no automatically wrapping
+        + Added Wrap-methods to manually wrap internal value to signed orunsigned circles
+        + Added Wrapped-methods to access the wrapped internal value without changing the object
+        + Fixed streaming operators
+          Deserialization should properly work from now on
+          Instead of manually throwing an exception, the failbit is set and the user can decide how to handle that
+        + Added support for comparing angles with different units
+      Added ASin, ACos, ATan and Atan2 functions that directly return proper angle types
+      Added constants cPI and cPI_2 according to M_PI and M_PI_2 but of proper type
+      Implemented tPose2D and tPose3D via the new localization::tPose
+
+    - rrlib_serialization
+      Added type traits IsSerializableContainer and IsSerializable.  This way, more standard containers can be serialized.  Furthermore, the number of stream operator overloads could be reduced.
+
+    - rrlib_rtti
+      Moved container serialization to rrlib_serialization
+      Removed unused and suboptimal serialization of shared_ptr-containers.
+      Removed factories.
+      Added various type traits and got rid of many less clear code (e.g. sStaticTypeInfo.h, deep_copy.h)
+      Fundamental data types are now initialized in tDataType.cpp
+      Added type trait 'TypeName' for setting rrlib_rtti type names (e.g. for whole templates)
+
+    - finroc_core
+      Limiting framework element hierarchy depth to detect programming errors before they lead to infinite loops/hanging applications
+
+    - finroc_plugins_data_ports
+      Added single-threaded cheap copy port implementation
+
+    - finroc_plugin_runtime_construction
+      The functionality of tFinstructableGroup is now contained in an annotation tFinstructable.
+        This way, finstructability can be added to arbitrary framework elements.
+        Retained small class 'FinstructableGroup' for backward-compatibility (graphical instantation).
+        Removed deprecated and obsolete header tFinstructableGroup.h.
+      Split tEditableInterfaces in two classes - the basic variant can be used outside of main runtime construction plugin.
+
+    - finroc_plugin_scheduling
+      Significantly reworked scheduling approach.
+        The schedule is now divided into 4 phases: pre-sense, sense, control, other.
+        For each of these phases a separate data flow graph is created and processed.
+        Plain components may be executed twice if they are part of both the sense and the control phase.
+        The execution phase is added to the TaskProfile in profiling mode.
+      Added method to thread container to execute cycles manually (e.g. in test programs)
+
+    - finroc_plugins_structure
+      Refactored tThreadContainer and the default_main_wrapper.
+        tThreadContainer is now a template with its base class as template parameter (as decided in Finroc meeting on 7th April 2014).
+        A 'Main Thread' ThreadContainer is no longer created automatically (and InitMainGroup function no longer expects it as parameter).
+        Instead, the main ThreadContainer is to be created inside InitMainGroup - possibly using the new convenience class tTopLevelThreadContainer.
+        This allows for more flexibility for its creation.
+      Renamed default_main_wrapper's InitMainGroup() to CreateMainGroup().
+        Adapted code templates to recent changes.
+	Added deprecated constructor with old signature to tGroup and tModule for backward-compatibility
+      Added functionality to support visualization
+      Added profiling functionality
+
+    - finroc_plugins_tcp
+      Whether to auto-connect can now be specified from the command line.
+      Changed default settings for 'Express Data' (for higher update rates).
+
+  * Java components
+
+    - finroc_core-java
+      ExternalConnection now always has an empty ModelHandler by default (otherwise, a lot of patching in TCP plugin would be required for situations where client application does not provide one)
+      Added class for handling SI units (e.g. for compatibility with rrlib_si_units) and refactored unit classes. Removed obsolete class Constant.
+      Replaced class UnknownType with cleaner and more extensible RemoteType and RemoteTypeAdapter classes.
+      Added default fallback remote type adapter for enums, string and xml serializable data.
+
+    - finroc_plugin_data_types-java
+      Remove obscure scaling of coordinates with 1000.
+      Moved all classes relevant for mca2 support only to RRLab's finroc_plugins_mca2-java
+
+    - finroc_tools_finstruct-java
+      Added 'connection history' feature (connection history is saved and provided as options on connecting)
+      Added component visualization view
+      Added profiling view
+      Performance upgrade for views that visualize additional data in graphs
+
+    - finroc_tools_gui-java
+      Added Click-Pose output to GeometryRenderer (angle is determined via mouse drag)
+      Fingui will now use native xml serialization when saving in applet mode (loading is also done with native serialization)
+      Added event output to buttons
+
+  * Thanks to our contributors:
+    - Michael Arndt, Robotics Research Lab, TU KL
+    - Patrick Fleischmann, Robotics Research Lab, TU KL
+    - Jochen Hirth, Robot Makers GmbH
+
+ -- Tobias Föhst <foehst@finroc.org>  Thu, 04 Sep 2014 10:12:54 +0200
+
