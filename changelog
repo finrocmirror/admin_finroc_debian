@@ -1,3 +1,93 @@
+finroc-13.10 (13.10+20150830114207-0ubuntu1) stable; urgency=low
+
+  * Upstream modifications
+
+    == finroc ==
+      [Tobias Föhst]
+      Fixed various bugs and warnings
+      port_name_builder now excludes pointers to ports from name generation
+      Added scoped named branches (to ease restrictions on named branches)
+      Adds a finroc.org path to each hgrc to ease comparison with upstream repositories
+      Fixed non-linear updates in finroc_update and handling of empty repositories or uncommitted merges
+      Fixed simulation mode of finroc_sync (really does not change things now) and added support for runtime construction
+
+    == finroc_core ==
+      [Max Reichardt]
+      Bugfix in GetFinrocFileToSaveTo() - now properly deals with absolute paths
+      Corrected error message and improved some source code comments.
+      Bugfix: Connection events on unpublished ports no longer get lost.
+
+    == finroc_plugins_data_ports ==
+      [Max Reichardt]
+      Bugfix in tPortCreationInfo. Flags are now always interpreted as flags in port constructors. They were interpreted as default value before if port data type T accepted core::tFrameworkElementFlag enum class in its constructor.
+      Fixed bug (erroneous use of std::vector::erase in uncritical loop)
+      Bugfix: If value to publish for some reason (e.g. port not ready or value out of bounds) could not be assigned to publishing port, programs could under some circumstances crash.
+
+    == finroc_plugins_ib2c ==
+      [Jochen Hirth]
+      Replaced emplace_back by push_back to support usage of bool.
+
+      [Tobias Föhst]
+      Corrects order of ctor parameters for derived activity ports
+
+    == finroc_plugins_parameters ==
+      [Max Reichardt]
+      Made tStaticParamaterList deserialization cope with missing 'Par ' prefixes that are now removed from auto-generated static parameter names.
+
+    == finroc_plugins_tcp ==
+      [Max Reichardt]
+      Fixed bug (erroneous use of std::vector::erase in loop). Could have caused minor communication delays with calls.
+      Fixes rare bug in memory management at shutdown
+
+    == finroc_tools_finstruct-java ==
+      [Max Reichardt]
+      Fix in PaintableViewer (port view): Rulers are now updated when auto-fitting is enabled
+
+    == finroc_tools_gui-java ==
+      [Max Reichardt]
+      Repaired and improved ValueInputField widget (now only publishes values on enter - and indicates this visually)
+      Fixed issue (low update rate of value input widgets) in last commit
+
+    == make_builder ==
+      [Daniel Schmidt, Jens Wettach, Massimo Tosa, Max Reichardt, Michael Arndt, Patrick Fleischmann, Steffen Hemer, Thomas Pfister, Thorsten Ropertz, Tobias Groll]
+      Updated libdb.raw
+
+      [Max Reichardt]
+      libenum_strings can now handle enums with custom (non-standard) values. Modified EnumStringsBuilderHandler to generate and register enum values appropriately.
+      clang-based enum strings build no longer tries to handle private or protected enums
+      Enum strings builder now deals with enums defined in templates appropriately.
+      Improved support for NVCC
+      Improved support for Qt4 moc and uic
+      Adapted to clang 3.5
+      Makes clang port name builder remove 'par' prefix for static parameters
+      Extends makebuilder for cross-compiling
+      Fix in 'Finroc System Library Loader': no longer crashes when pkgconfig directory is missing
+      Improved error messags
+
+      [Tobias Föhst]
+      Improved robustness for different environments (independence of $PATH, initialization of CCFLAGS with CFLAGS, matching of full filenames in search for library)
+      Being more informative about missing libdb files
+      Extends makebuilder for cross-compiling
+      Adapted to clang 3.6
+
+    == rrlib_serialization ==
+      [Max Reichardt]
+      Bugfix in memory buffer when wrapping existing memory and writing to it.
+
+    == rrlib_speech_synthesis ==
+      [Max Reichardt]
+      Added missing pthread dependency to make.xml
+
+    == rrlib_util ==
+      [Bernd Helge Leroch]
+      fixed issue in the context of name resolution
+
+      [Tobias Föhst]
+      Bugfix: casts are not allowed in #if expressions (and CLOCKS_PER_SEC resolves to one in c++11)
+      Bugfix: special member functions for move semantics are not generated if others are declared. This restores default movability of non-copyable objects.
+
+ -- Tobias Föhst <foehst@finroc.org>  Tue, 01 Sep 2015 23:57:52 +0200
+
 finroc-13.10 (13.10+20140901161533-0ubuntu1) stable; urgency=low
 
   * Upstream modifications
