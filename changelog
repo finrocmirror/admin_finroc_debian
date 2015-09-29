@@ -1,3 +1,9 @@
+finroc-14.08 (14.08+20140902214942-0ubuntu2) stable; urgency=medium
+
+  * Adds patches to make packaging work in pbuilder
+
+ -- Tobias Föhst <foehst@finroc.org>  Tue, 29 Sep 2015 13:54:58 +0200
+
 finroc-14.08 (14.08+20140902214942-0ubuntu1) stable; urgency=low
 
   * New upstream release: 14.08

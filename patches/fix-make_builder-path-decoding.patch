@@ -1,0 +1,14 @@
+--- a/make_builder/src/makebuilder/util/Files.java
++++ b/make_builder/src/makebuilder/util/Files.java
+@@ -375,11 +375,6 @@
+     public static String getRootDir(Class<?> caller) {
+ 
+         String dirName = caller.getResource(caller.getSimpleName() + ".class").toString();
+-        try {
+-            dirName = URLDecoder.decode(dirName, "utf8");
+-        } catch (Exception e) {
+-            throw new RuntimeException(e);
+-        }
+         String packageName = caller.getName().replaceAll("[.]", "/");
+         dirName = dirName.substring(0, dirName.indexOf(packageName));
+         if (dirName.contains(".jar!")) {

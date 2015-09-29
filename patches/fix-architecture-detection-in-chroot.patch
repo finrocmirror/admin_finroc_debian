@@ -1,0 +1,13 @@
+--- a/scripts/tools/configure
++++ b/scripts/tools/configure
+@@ -104,7 +104,9 @@
+ my $operating_system_native = join "", map { chomp; lc $_ } `uname -s`;
+ $operating_system = $operating_system_native if $operating_system eq "auto";
+ my $architecture = $configuration{"architecture"};
+-my $architecture_native = join "", map { chomp; $_ } `uname -m`;
++my $architecture_native = join "", map { chomp; $_ } `dpkg --print-architecture || uname -m`;
++$architecture_native = "i686" if $architecture_native eq "i386";
++$architecture_native = "x86_64" if $architecture_native eq "amd64";
+ $architecture = $architecture_native if $architecture eq "auto";
+ my $target = sprintf "%s_%s_%s", $operating_system, $architecture, lc $configuration{"mode"};
+ if (defined $configuration{"mode"})
