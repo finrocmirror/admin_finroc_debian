@@ -1,0 +1,22 @@
+--- a/scripts/perl/FINROC/components.pm
++++ b/scripts/perl/FINROC/components.pm
+@@ -103,7 +103,7 @@
+ sub GetComponentNameFromDirectory($)
+ {
+     my ($directory) = @_;
+-    $directory =~ s/^$FINROC_HOME\/// if $directory =~ /^\//;
++    $directory =~ s/^\Q$FINROC_HOME\E\/// if $directory =~ /^\//;
+ 
+     return "make_builder" if $directory eq "make_builder";
+ 
+--- a/scripts/perl/FINROC/utilities.pm
++++ b/scripts/perl/FINROC/utilities.pm
+@@ -102,7 +102,7 @@
+ sub EscapeFinrocHome($)
+ {
+     my ($name) = @_;
+-    $name =~ s/$FINROC_HOME/\$FINROC_HOME/;
++    $name =~ s/\Q$FINROC_HOME\E/\$FINROC_HOME/;
+     return $name;
+ }
+ 

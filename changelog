@@ -1,3 +1,9 @@
+finroc-13.10 (13.10+20150830114207-0ubuntu2) stable; urgency=medium
+
+  * Adds patches to make packaging work in pbuilder
+
+ -- Tobias Föhst <foehst@finroc.org>  Tue, 29 Sep 2015 13:54:58 +0200
+
 finroc-13.10 (13.10+20150830114207-0ubuntu1) stable; urgency=low
 
   * Upstream modifications
