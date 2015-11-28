@@ -1,3 +1,214 @@
+finroc-14.08 (14.08+20151124203421-0ubuntu1) stable; urgency=low
+
+  * Upstream modifications
+
+    == finroc ==
+      [Max Reichardt]
+      Patch to Makefile in order to copy with spaces in /home/max/finroc.org. Patch was provided by Michael.
+
+      [Tobias Föhst]
+      Fixed list of simvis3d resource classes
+      Changes update process of mercurial repositories to cope with multiple heads
+      Bugfix in port_name_builder: excludes pointers to ports from name generation
+      Fixed warnings in perl scripts
+      Adds scoped named branches (to ease restrictions on named branches)
+      Adds a finroc.org path to each hgrc to ease comparison with upstream repositories
+      Bugfix: manually checking for uncommitted changes instead of hg up --check to effectively avoid switching non-linear updates
+      Bugfixes in mercurial updates: added handling of uncommitted merges and improved handling of empty repositories
+      Bugfix: ignoring untracked files and non-topological heads in update process
+      Bugfix: reordered messages in finroc_update to avoid all messages in case of up-to-date working copy and to give uncommitted-changes higher priority than not-on-head messages
+      Bugfix in finroc_sync: used incorrect value for rsync-ports and created folders in simulation mode
+      Improves finroc_sync: Adds configuration support for a common prefix and .finroc-files. Also adds lookup for finstructable dependencies
+      Fixes warning wrt. unknown component types. Also stops writing empty sections into hgrc-files.
+
+    == finroc_core ==
+      [Max Reichardt]
+      Bugfix in GetFinrocFileToSaveTo() - now properly deals with absolute paths
+      file lookup functions now support file types
+      Corrected error message and improved some source code comments.
+      Bugfix: Connection events on unpublished ports no longer get lost.
+
+    == finroc_core-java ==
+      [Max Reichardt]
+      Finroc can now deal with remote enum types that have custom, non-standard values
+      Added extra helper SIUnit for nicer string output of rad/s
+
+    == finroc_plugins_data_ports ==
+      [Max Reichardt]
+      Bugfix in tPortCreationInfo. Flags are now always interpreted as flags in port constructors. They were interpreted as default value before if port data type T accepted core::tFrameworkElementFlag enum class in its constructor.
+      Fixed bug (erroneous use of std::vector::erase in uncritical loop)
+      Bugfix: If value to publish for some reason (e.g. port not ready or value out of bounds) could not be assigned to publishing port, programs could under some circumstances crash.
+      Minor bugfix: tNumber type is now always registered with name 'Number' during static initialization. This caused problems e.g. in CygWin.
+
+    == finroc_plugins_data_types-java ==
+      [Max Reichardt]
+      Added basic support for MONO32_FLOAT images
+      Bugfix in tCanvas' optimized rendering of boxes to buffered images. Furthermore, shape edges are now drawn after they were filled.
+      Added type adapter for new rrlib::localization::tPose types. QuantityTypeAdapter can now cope with angle per second rrlib::si_unit type.
+
+    == finroc_plugins_ib2c ==
+      [Jochen Hirth]
+      Changed comparison of activity and last activity to avoid unitended assertion
+      Replaced emplace_back by push_back to support usage of bool.
+
+      [Tobias Föhst]
+      Corrects order of ctor parameters for derived activity ports
+
+    == finroc_plugins_network_transport ==
+      [Max Reichardt]
+      Fix for framework element info serialization on platforms where uint32_t is defined as unsigned long (e.g. nios2)
+
+    == finroc_plugins_parameters ==
+      [Max Reichardt]
+      Made tStaticParamaterList deserialization cope with missing 'Par ' prefixes that are now removed from auto-generated static parameter names.
+
+    == finroc_plugins_runtime_construction ==
+      [Max Reichardt]
+      Fix for "Inconsistency detected by ld.so: dl-close.c: 762: _dl_close: Assertion `map->l_init_called' failed" at program shutdown.
+
+    == finroc_plugins_structure ==
+      [Max Reichardt]
+      Standard parts now also catch SIGTERM and try to shut down cleanly (fixes RRLab ticket #143).
+
+    == finroc_plugins_tcp ==
+      [Max Reichardt]
+      Adapted RemoteTypes class in order to support enums with custom, non-standard values. In relevant cases, enum constants are now also sent to connections partners (without breaking compatibility with older C++ parts).
+      Fixed bug (erroneous use of std::vector::erase in loop). Could have caused minor communication delays with calls.
+      Fixes rare bug in memory management at shutdown
+
+    == finroc_tools_finstruct-java ==
+      [Max Reichardt]
+      Adapted to changes in rrlib_serialization-java
+      Added isAntialiasingEnabled() method to graphviz views
+      Ib2c (classic) view now colors edges. I tried to keep this identical to mcabrowser's behavior and representation.
+      Colors in ib2c view are now closer to original. ComponentVisualization view has normal edges again.
+      Fix in address bar: Addresses ending with a '/' are now handled properly
+      Fixed vertical scrolling of views
+      Fix in PaintableViewer (port view): Rulers are now updated when auto-fitting is enabled
+
+    == finroc_tools_gui-java ==
+      [Max Reichardt]
+      Fixed vertical mouse-wheel scrolling (as suggested by Michael)
+      When parts (dis)appear, connection panel tree state is now properly retained
+      Fixed possible NullPointerException in ConnectionPanel
+      Repaired and improved ValueInputField widget (now only publishes values on enter - and indicates this visually)
+      Fixed issue (low update rate of value input widgets) in last commit
+      Minor performance fix: Avoids unnessary redrawing of rulers in Oscilloscope widget
+      Bugfix in custom widget output that prevented updates of combo boxes with custom enum types (when loading GUI before connecting).
+
+    == make_builder ==
+      [Daniel Schmidt, Jens Wettach, Massimo Tosa, Michael Arndt, Patrick Fleischmann, Steffen Hemer, Thomas Pfister, Tobias Groll]
+      Library information for opencl, cudart, cgal, jaus, libreadline, libjpeg, ros indigo, mrtp, mysql, ompl, wiringPi, V-Rep, and matIO
+
+      [Max Reichardt]
+      Fixed issue in updatelibdb script: .so files in paths contained in LD_LIBRARY_PATH environment variable now get a higher rating when choosing between multiple alternatives
+      Added libwebsockets to libdb.raw. Small fix so that port names are generated for Finroc components in MCA repositories again.
+      Added 'compiler' option for targets (if e.g. 'compiler=$(NVCC)' is added to a target in a make.xml, nvcc is used to compile it)
+      Upgraded NVCC-Handler: It can cope with more than one .cu file and handles device code linking prior to ordinary linking. Removed '-compiler' option from targets again (as different compilers typically handle different arguments).
+      Added more helpful error message when targets depend on headers from programs
+      Added libsb entry for libfreenect2
+      Clang plugins are now built with c++11 compiler flag - as required by clang >= 3.5
+      clang plugin binary names now have clang version included. Before, changing the clang version (without calling 'make clean') caused segfaults in the clang calls (and the reason did not appear to be obvious).
+      Makes clang port name builder remove 'par' prefix for static parameters
+      Extends makebuilder for cross-compiling
+      Removed matlab from search path
+      Compile flags for clang plugins are now obtained from llvm-config command instead of libdb
+      Qt4 moc and uic are no longer searched for by updatelibdb - as they are typically in the path if qt4 is installed. This way, there is no need for a native libdb anymore.
+      Simplifies handling of libdb files - as only one is now required even for cross-compiling (reverts some of the changes made in changeset 605:425b40708e04).
+      Added possibility to add extra paths for pkgconfig library lookup via target variable PKG_CONFIG_EXTRA_PATH
+      Bugfix in processing of custom pkg config paths: system root dir is now correctly prepended.
+      Fixes error (missing space) in libdb.search.default
+      Fix in 'Finroc System Library Loader': no longer crashes when pkgconfig directory is missing
+      Added --soversion command line options build libraries with specific SO version: The version is appended to filename, symbolic links without version are created and DT_SONAME is set by the linker.
+      Bugfix when rebuilding with versioned .so files
+      Fixes errors with clang plugins on Ubuntu 15.10 (they need to be compiled with g++) and also removes some warnings.
+
+      [Thorsten Ropertz]
+      libcuda.so no longer present, replaced by libcudart.so; physx33 debug define moved to code due to special flag _DEBUG
+      clang flag -S added in order to just build the AST tree and not use the outputs (required e.g. on arm devices)
+
+      [Tobias Föhst]
+      Made call to updatelibdb independent of $PATH
+      Restricts search to full filenames to avoid mismatches like "can festival.h vs festival.h"
+      CCFLAGS is initialized with CFLAGS
+      Bugfix in clang-plugin-port_names: excludes pointers to ports from name generation
+      Being more informative about missing libdb files
+      Adapts to changes in finroc: only libdb.$FINROC_TARGET is used when building Finroc
+      Fixes backwards compatibility: when compiling older Finroc branches the target-dependent libdb is not generated and libdb.txt must be used
+      Adapted to changed API in libclang-3.6 and ensuring to use clang++ to be able to identify the current version
+
+    == rrlib_canvas ==
+      [Max Reichardt]
+      Fixed canvas issues (in deserialization and appending)
+      Bugfix in canvas serialization
+
+    == rrlib_geometry ==
+      [Patrick Fleischmann]
+      Adds copy constructor and assignment operator to tShape, replaces NULL with nullptr
+
+    == rrlib_localization ==
+      [Max Reichardt]
+      Compile fix for clang - as it cannot cope with some forward declarations of orientation operators ("ambiguous").
+
+      [Tobias Föhst]
+      Bugfix: Fixes 3D rotations and therefore reference transformations (tests added)
+      Fixes warning wrt std::istream::peek
+      Bugfix: Makes multiplication and division with si_units::tTime more general to properly support deriving and integrating over time
+
+    == rrlib_math ==
+      [Tobias Föhst]
+      Fixes streaming of vectors and matrices that use character types as elements
+      Fixes warning wrt std::istream::peek
+
+    == rrlib_rtti ==
+      [Max Reichardt]
+      Adapted rrlib_rtti in order support enums with custom, non-standard values
+      Added/fixed rtti support for std::set
+      Bugfix in naming of types whose template parameters have custom names (comparison operator of type renaming table was wrong -> not all elements got inserted)
+      Bugfix: SupportsBitwiseCopy type trait is now false for polymorphic classes, as they include a vtable pointer.
+      Fix in unit test: no longer fails with versioned .so files
+
+    == rrlib_serialization ==
+      [Max Reichardt]
+      Enums with custom, non-standard values can now be handled by rrlib_serialization. Added unit tests for this.
+      Added missing test header file: tests/serialization.h
+      Replaced calls to new std::stoll with std::strtoll to support some older compilers.
+      Added/fixed serialization support for std::set
+      Bugfix in memory buffer when wrapping existing memory and writing to it.
+
+    == rrlib_serialization-java ==
+      [Max Reichardt]
+      Adapted rrlib_serialization-java in order to be able to support remote (C++) enum types that have custom, non-standard values
+
+    == rrlib_si_units ==
+      [Tobias Föhst]
+      Adds missing typedef for value types
+
+    == rrlib_speech_synthesis ==
+      [Max Reichardt]
+      Added missing pthread dependency to make.xml
+
+    == rrlib_thread ==
+      [Tobias Föhst]
+      Fixed typo and demoted message about stopping threads from USER to DEBUG
+
+    == rrlib_util ==
+      [Bernd Helge Leroch]
+      fixed issue in the context of name resolution
+
+      [Tobias Föhst]
+      Fixed warning: printf format string
+      Better fix for printf format string warnings: replaced PRINTF by PRINT macros to use streaming semantics for better portability as Michael suggested
+      Setting max log message level of tUnitTestSuite to USER as tests should be silent.
+      Bugfix: casts are not allowed in #if expressions (and CLOCKS_PER_SEC resolves to one in c++11)
+      Bugfix: special member functions for move semantics are not generated if others are declared. This restores default movability of non-copyable objects.
+
+    == rrlib_xml-java ==
+      [Max Reichardt]
+      Bugfix in XMLDocument class: root node did not get specified name
+
+ -- Tobias Föhst <foehst@finroc.org>  Sat, 28 Nov 2015 16:40:52 +0100
+
 finroc-14.08 (14.08+20140902214942-0ubuntu2) stable; urgency=medium
 
   * Adds patches to make packaging work in pbuilder
