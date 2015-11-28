@@ -238,13 +238,13 @@ foreach my $component (@components)
                 s/^sources\/cpp\///;
                 printf INSTALL "sources/cpp/%s %s/%s\n", $_, $header_prefix, dirname $_;
             }
+            map { printf INSTALL "export/%s/lib/%s /usr/lib/\n", $FINROC_TARGET, $_ } @{$package_meta_data{$component}{lib}};
             map { printf INSTALL "export/pkgconfig/%s /usr/lib/pkgconfig/\n", $_ } @{$package_meta_data{$component}{pkg}};
             close INSTALL;
 
-#            foreach (@{$package_meta_data{$component}{'pkg'}})
-#            {
-#                system sprintf "echo \"component=%s\" >> %s/%s/usr/lib/pkgconfig/%s", $component, $base_folder, $package_name, $_;
-#            }
+            open SHLIBS, sprintf "> debian/%s.shlibs", $name or die $!;
+            map { printf SHLIBS "%s %s %s\n", $_, $release, $name } @{$package_meta_data{$component}{lib}};
+            close SHLIBS
         }
         if ($type eq "exec")
         {
@@ -252,7 +252,7 @@ foreach my $component (@components)
         }
 
         open INSTALL, sprintf "> debian/%s.install", $name or die $!;
-        map { printf INSTALL "export/%s/lib/%s /usr/lib/\n", $FINROC_TARGET, $_ } @{$package_meta_data{$component}{lib}};
+        map { printf INSTALL "export/%s/lib/%s.* /usr/lib/\n", $FINROC_TARGET, $_ } @{$package_meta_data{$component}{lib}};
         close INSTALL
     }
     if ($package_meta_data{$component}{language} eq "java")
@@ -326,7 +326,7 @@ printf INSTALL "export/java/fingui.jar /usr/share/java/\n";
 close INSTALL;
 
 open INSTALL, "> debian/libenum-strings-$release.install" or die $!;
-printf INSTALL "export/%s/lib/libenum_strings.so /usr/lib/\n", $FINROC_TARGET;
+printf INSTALL "export/%s/lib/libenum_strings.so.* /usr/lib/\n", $FINROC_TARGET;
 close INSTALL;
 
 print "======= BUILD DEPENDENCIES =======\n";

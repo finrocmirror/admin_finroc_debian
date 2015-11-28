@@ -1,3 +1,10 @@
+finroc-14.08 (14.08+20151124203421-0ubuntu2) stable; urgency=medium
+
+  * Adds patch that enables using the new --soversion-option of make_builder
+  * Adapts generate_packages and rules to handle shared libraries with sonames
+
+ -- Tobias Föhst <foehst@finroc.org>  Sat, 28 Nov 2015 16:27:14 +0100
+
 finroc-14.08 (14.08+20151124203421-0ubuntu1) stable; urgency=low
 
   * Upstream modifications

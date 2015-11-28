@@ -15,7 +15,7 @@ override_dh_auto_clean:
 
 override_dh_clean:
 	dh_clean
-	rm -f debian/*.substvars debian/*.install debian/*.links debian/*.copyright debian/control
+	rm -f debian/*.substvars debian/*.install debian/*.links debian/*.copyright debian/*.shlibs debian/control
 	for i in debian/*.in ; do cp $${i} $$(echo $${i} | sed -e 's/\.in$$//') ; done
 	sed -i 's/<RELEASE>/$(RELEASE)/' debian/control
 	rm -rf .offline .finroc.conf .makeBuilderCache Makefile.generated libinfo.h etc/targets/*_release-dpkg
