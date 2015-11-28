@@ -1,3 +1,13 @@
+finroc-13.10 (13.10+20151124203421-0ubuntu1) stable; urgency=low
+
+  * Upstream modifications
+
+    == make_builder ==
+      [Max Reichardt]
+      Adds soversion info to built libraries
+
+ -- Tobias Föhst <foehst@finroc.org>  Sat, 28 Nov 2015 15:12:17 +0100
+
 finroc-13.10 (13.10+20150830114207-0ubuntu2) stable; urgency=medium
 
   * Adds patches to make packaging work in pbuilder
