@@ -1,3 +1,53 @@
+finroc-14.08 (14.08+20160302211138-0ubuntu1) stable; urgency=low
+
+  * Upstream modifications
+
+    == finroc ==
+      [Tobias Föhst]
+      Adapts finroc_sync to FinstructableGroup->Finstructable change
+      Fixes loop for automatic dependencies in finroc_sync
+      Fixes formatting in shell script
+      Fixes warnings in finroc_sync
+      Fixes regexps that should replace $FINROC_HOME
+      Making use of make_builder's --soversion flag to create libraries with proper sonames
+
+    == finroc_core-java ==
+      [Tobias Föhst]
+      Bugfix: corrected factor in m/s <-> km/h conversion
+
+    == finroc_plugins_rpc_ports ==
+      [Max Reichardt]
+      Fix in tClientPort so that it can be used as tClient in components.
+
+    == finroc_plugins_runtime_construction ==
+      [Max Reichardt]
+      Static parameter proxys are no longer saved nor loaded in finstructable groups - as this feature was neither used nor tested and caused problems.
+      Bugfix: Edges connected by string are now (only) saved in correct finstructable group.
+      Bugfix to make profiling mode work properly in finroc_run
+
+    == finroc_tools_gui-java ==
+      [Max Reichardt]
+      Fixes issue in user interface: Holding Ctrl-key now behaves as expected. It always operates on smallest widget below cursor - helpful to select a small widget inside a big one.
+
+    == rrlib_canvas ==
+      [Tobias Föhst]
+      Adds rtti.cpp with type info initialization for tCanvas2D and tCanvas3D
+
+    == rrlib_localization ==
+      [Tobias Föhst]
+      Adjusts test for rounding errors in release mode
+      Another adjustment for rounding errors in release mode
+
+    == rrlib_logging ==
+      [Tobias Föhst]
+      Adds streaming operator for rrlib::time::tDuration
+
+    == rrlib_serialization ==
+      [Tobias Föhst]
+      Improves diagnostics by checking a tFileSources existence during construction
+
+ -- Tobias Föhst <foehst@finroc.org>  Fri, 04 Mar 2016 23:12:23 +0100
+
 finroc-14.08 (14.08+20151124203421-0ubuntu3) unstable; urgency=medium
 
   * Fixes tests in rrlib_localization

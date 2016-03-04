@@ -1,5 +1,2 @@
 fix-make_builder-path-decoding.patch
-fix-FINROC_HOME-replacing-regexes.patch
 fix-architecture-detection-in-chroot.patch
-add-soname.patch
-fix-tests-in-release-mode.patch
